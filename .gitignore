@@ -1,2 +1,3 @@
 .got
-test/dummy_app
+test/dummy_app/*
+!test/dummy_app/.gitkeep
