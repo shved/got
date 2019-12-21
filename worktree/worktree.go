@@ -2,7 +2,6 @@ package worktree
 
 import (
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,29 +21,72 @@ func NewFromWorktree() *Worktree {
 	return &Worktree{root: commit, index: objIndex}
 }
 
-// func NewFromCommit() *Worktree {
-// 	//
-// }
+func NewFromCommit(commitHash string) *Worktree {
+	commit := object.RecReadObject(object.Commit, commitHash, &object.Object{})
+	return &Worktree{root: commit}
+}
 
 func MakeCommit() {
 	wt := NewFromWorktree()
 	wt.buildWorktreeGraph()
 	wt.buildHashSums()
 	wt.persistObjects()
+	// got.UpdateLog()
+	// TODO got.UpdateLog() with entry: <datetime, hash, message, parent commit hash>
+}
 
-	// for _, obj := range objIndex {
-	// 	if obj.ObjType != Blob {
-	// 		fmt.Println(hashString(obj.sha), obj.path+":")
-	// 		fmt.Println(strings.Join(obj.contentLines, "\n"))
-	// 		fmt.Println()
-	// 	}
-	// }
+func ToCommit(commitHash string) {
+	wt := NewFromCommit(commitHash)
+	// TODO insert prompt before rewrite worktree
+	wt.restoreFromObjects()
+}
+
+func (wt *Worktree) restoreFromObjects() {
+	eraseCurrentWorktree()
+	wt.root.RecRestoreFromObject(got.AbsRepoRoot)
+}
+
+func eraseCurrentWorktree() {
+	var paths []string
+
+	worktreeWalker := func(path string, fi os.FileInfo, err error) error {
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if path == got.AbsRepoRoot {
+			return nil
+		}
+
+		for _, entry := range got.DefaultIgnoreEntries {
+			if fi.IsDir() && fi.Name() == entry {
+				return filepath.SkipDir
+			}
+
+			if !fi.IsDir() && fi.Name() == entry {
+				return nil
+			}
+		}
+
+		paths = append(paths, path)
+
+		return nil
+	}
+
+	err := filepath.Walk(got.AbsRepoRoot, worktreeWalker)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, p := range paths {
+		_ = os.RemoveAll(p)
+	}
 }
 
 func buildObjIndex() []*object.Object {
 	var objIndex []*object.Object
 
-	worktreeWalker := func(path string, f os.FileInfo, err error) error {
+	worktreeWalker := func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -55,16 +97,16 @@ func buildObjIndex() []*object.Object {
 
 		empty, _ := isEmpty(path)
 
-		if f.IsDir() && empty {
+		if fi.IsDir() && empty {
 			return filepath.SkipDir
 		}
 
 		for _, entry := range got.DefaultIgnoreEntries {
-			if f.IsDir() && f.Name() == entry {
+			if fi.IsDir() && fi.Name() == entry {
 				return filepath.SkipDir
 			}
 
-			if !f.IsDir() && f.Name() == entry {
+			if !fi.IsDir() && fi.Name() == entry {
 				return nil
 			}
 		}
@@ -79,10 +121,10 @@ func buildObjIndex() []*object.Object {
 			log.Fatal(err)
 		}
 
-		if f.IsDir() {
-			obj = object.Object{ObjType: object.Tree, ParentPath: relParentPath, Name: f.Name(), Path: relPath}
+		if fi.IsDir() {
+			obj = object.Object{ObjType: object.Tree, ParentPath: relParentPath, Name: fi.Name(), Path: relPath}
 		} else {
-			obj = object.Object{ObjType: object.Blob, ParentPath: relParentPath, Name: f.Name(), Path: relPath}
+			obj = object.Object{ObjType: object.Blob, ParentPath: relParentPath, Name: fi.Name(), Path: relPath}
 		}
 
 		objIndex = append(objIndex, &obj)
@@ -117,7 +159,7 @@ func (wt *Worktree) persistObjects() {
 }
 
 func (wt *Worktree) buildHashSums() {
-	wt.root.RecBuildHashSums()
+	wt.root.RecCalcHashSum()
 }
 
 func (wt *Worktree) buildWorktreeGraph() {
@@ -125,11 +167,7 @@ func (wt *Worktree) buildWorktreeGraph() {
 		log.Fatal(got.ErrWrongRootType)
 	}
 
-	parentCommitSha, err := ioutil.ReadFile(got.HeadAbsPath())
-	if err != nil {
-		log.Fatal(err)
-	}
-	wt.root.ParentCommitSha = parentCommitSha
+	wt.root.ParentCommitHash = got.ReadHead()
 
 	for _, obj := range wt.index {
 		if obj.ParentPath == "." {

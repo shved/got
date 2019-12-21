@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -15,6 +16,7 @@ var (
 	ErrInvalidObjType    = errors.New("invalid object type")
 	ErrNotGotRepo        = errors.New("not a got repo")
 	ErrWrongRootType     = errors.New("only commit could be an object graph root")
+	ErrObjDoesNotExist   = errors.New("object does not exist")
 )
 
 var DefaultIgnoreEntries = []string{
@@ -30,11 +32,15 @@ var EmptyCommitRef = []byte("0000000000000000000000000000000000000000")
 
 var (
 	gotPath     string = ".got"
-	objectsPath string = strings.Join([]string{gotPath, "objects"}, string(filepath.Separator))
-	commitPath  string = strings.Join([]string{objectsPath, "commit"}, string(filepath.Separator))
-	treePath    string = strings.Join([]string{objectsPath, "tree"}, string(filepath.Separator))
-	blobPath    string = strings.Join([]string{objectsPath, "blob"}, string(filepath.Separator))
-	headPath    string = strings.Join([]string{gotPath, "HEAD"}, string(filepath.Separator))
+	objectsPath string = path.Join(gotPath, "objects")
+	headPath    string = path.Join(gotPath, "HEAD")
+	logPath     string = path.Join(gotPath, "LOG")
+
+	CommitPath string = path.Join(objectsPath, "commit")
+	TreePath   string = path.Join(objectsPath, "tree")
+	BlobPath   string = path.Join(objectsPath, "blob")
+
+	logsHeader string = "Time\tCommit hash\tParent hash\tCommit message\n"
 )
 
 func InitRepo() {
@@ -44,12 +50,16 @@ func InitRepo() {
 		log.Fatal(ErrRepoAlreadyInited)
 	}
 
-	os.Mkdir(objectsPath, 0755)
-	os.Mkdir(commitPath, 0755)
-	os.Mkdir(treePath, 0755)
-	os.Mkdir(blobPath, 0755)
+	err := os.Mkdir(objectsPath, 0755)
+	err = os.Mkdir(CommitPath, 0755)
+	err = os.Mkdir(TreePath, 0755)
+	err = os.Mkdir(BlobPath, 0755)
 
-	if err := ioutil.WriteFile(headPath, EmptyCommitRef, 0644); err != nil {
+	err = ioutil.WriteFile(headPath, EmptyCommitRef, 0644)
+
+	_, err = os.Create(logPath)
+
+	if err != nil {
 		log.Fatal(err)
 	}
 }
@@ -62,22 +72,45 @@ func HeadAbsPath() string {
 	return path.Join(AbsRepoRoot, headPath)
 }
 
+func ReadLog() string {
+	contents, err := ioutil.ReadFile(logPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	withHeaders := string(contents) + logsHeader
+	entries := strings.Split(withHeaders, "\n")
+	sort.Sort(sort.Reverse(sort.StringSlice(entries)))
+	logs := strings.Join(entries, "\n")
+	return logs
+}
+
+// func LogCommit(t time.Time, hashString string, parentHashString string, message string) {
+// }
+
 func UpdateHead(sha string) {
 	if err := ioutil.WriteFile(headPath, []byte(sha), 0644); err != nil {
 		log.Fatal(err)
 	}
 }
 
+func ReadHead() string {
+	commitSha, err := ioutil.ReadFile(HeadAbsPath())
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(commitSha)
+}
+
 func CommitDirAbsPath() string {
-	return path.Join(AbsRepoRoot, commitPath)
+	return path.Join(AbsRepoRoot, CommitPath)
 }
 
 func TreeDirAbsPath() string {
-	return path.Join(AbsRepoRoot, treePath)
+	return path.Join(AbsRepoRoot, TreePath)
 }
 
 func BlobDirAbsPath() string {
-	return path.Join(AbsRepoRoot, blobPath)
+	return path.Join(AbsRepoRoot, BlobPath)
 }
 
 func getRepoRoot() string {
