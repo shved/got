@@ -25,7 +25,12 @@ func main() {
 	case "init":
 		got.InitRepo()
 	case "commit":
-		worktree.MakeCommit()
+		message := flag.Arg(1)
+		if message == "" {
+			fmt.Println("No commit message provided")
+			os.Exit(0)
+		}
+		worktree.MakeCommit(message)
 	case "to":
 		shaString := flag.Arg(1)
 		worktree.ToCommit(shaString)

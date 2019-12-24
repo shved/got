@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 var (
@@ -72,8 +73,12 @@ func HeadAbsPath() string {
 	return path.Join(AbsRepoRoot, headPath)
 }
 
+func LogAbsPath() string {
+	return path.Join(AbsRepoRoot, logPath)
+}
+
 func ReadLog() string {
-	contents, err := ioutil.ReadFile(logPath)
+	contents, err := ioutil.ReadFile(LogAbsPath())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -84,11 +89,29 @@ func ReadLog() string {
 	return logs
 }
 
-// func LogCommit(t time.Time, hashString string, parentHashString string, message string) {
-// }
+func UpdateLog(t time.Time, hashString string, parentHashString string, message string) {
+	logEntry := strings.Join(
+		[]string{
+			t.UTC().Format(time.RFC3339),
+			hashString,
+			parentHashString,
+			message,
+		},
+		"\t",
+	)
+	logEntry = logEntry + "\n"
+
+	f, err := os.OpenFile(LogAbsPath(), os.O_APPEND|os.O_WRONLY, 0644)
+	defer f.Close()
+	_, err = f.WriteString(logEntry)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 func UpdateHead(sha string) {
-	if err := ioutil.WriteFile(headPath, []byte(sha), 0644); err != nil {
+	if err := ioutil.WriteFile(HeadAbsPath(), []byte(sha), 0644); err != nil {
 		log.Fatal(err)
 	}
 }

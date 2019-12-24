@@ -31,13 +31,14 @@ got to d143528ac209d5d927e485e0f923758a21d0901e
 ```
 
 # TODO
-* support branches
-* support .gotignore file among with default ingore entries
-* ignore nested empty folders
-* atomic commit writing
-* reduce system calls (especially io)
-* server and client over ssh
-* documentation comments
-* git log
-* keep files permissions when checkout to commit
-* command to delete hanging commits
+- [x] git log
+- [ ] fix timestamps in log
+- [ ] support branches
+- [ ] support .gotignore file among with default ingore entries
+- [ ] ignore nested empty folders
+- [ ] atomic commit writing
+- [ ] reduce system calls (especially io)
+- [ ] server and client over ssh
+- [ ] documentation comments
+- [ ] keep files permissions when checkout to commit
+- [ ] command to delete hanging commits

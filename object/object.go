@@ -31,6 +31,9 @@ type Object struct {
 	ParentPath       string
 	Path             string
 	ParentCommitHash string
+	CommitMessage    string
+	HashString       string
+	Timestamp        time.Time
 
 	sha          []byte
 	contentLines []string
@@ -117,8 +120,14 @@ func RecReadObject(t ObjectType, hashString string, parentObj *Object) *Object {
 	case Commit:
 		oPath := path.Join(t.storePath(), hashString)
 		res, header := readArchive(oPath)
-		commit := &Object{ObjType: Commit, Name: header.Name, sha: []byte(hashString)}
-		log.Println(commit)
+		commit := &Object{
+			ObjType:       Commit,
+			Name:          header.Name,
+			sha:           []byte(hashString),
+			HashString:    hashString,
+			Timestamp:     header.ModTime,
+			CommitMessage: header.Comment,
+		}
 		children := parseObjContent(string(res))
 		for _, child := range children {
 			if child.t != Commit {
@@ -131,9 +140,15 @@ func RecReadObject(t ObjectType, hashString string, parentObj *Object) *Object {
 	case Tree:
 		oPath := path.Join(t.storePath(), hashString)
 		res, header := readArchive(oPath)
-		tree := &Object{ObjType: Tree, Name: header.Name, sha: []byte(hashString), Parent: parentObj}
+		tree := &Object{
+			ObjType:    Tree,
+			Name:       header.Name,
+			sha:        []byte(hashString),
+			HashString: hashString,
+			Parent:     parentObj,
+			Timestamp:  header.ModTime,
+		}
 		children := parseObjContent(string(res))
-		log.Println(tree)
 		for _, child := range children {
 			tree.Children = append(tree.Children, RecReadObject(child.t, child.hashString, tree))
 		}
@@ -141,8 +156,15 @@ func RecReadObject(t ObjectType, hashString string, parentObj *Object) *Object {
 	case Blob:
 		oPath := path.Join(t.storePath(), hashString)
 		res, header := readArchive(oPath)
-		blob := &Object{ObjType: Blob, Name: header.Name, sha: []byte(hashString), Parent: parentObj, gzipContent: string(res)}
-		log.Println(blob)
+		blob := &Object{
+			ObjType:     Blob,
+			Name:        header.Name,
+			sha:         []byte(hashString),
+			HashString:  hashString,
+			Parent:      parentObj,
+			gzipContent: string(res),
+			Timestamp:   header.ModTime,
+		}
 		return blob
 	default:
 		log.Fatal(got.ErrInvalidObjType)
@@ -216,6 +238,7 @@ func (o *Object) RecCalcHashSum() {
 		h := sha1.New()
 		h.Write(data)
 		o.sha = h.Sum(nil)
+		o.HashString = hashString(o.sha)
 	case Tree:
 		for _, ch := range o.Children {
 			ch.RecCalcHashSum()
@@ -228,6 +251,7 @@ func (o *Object) RecCalcHashSum() {
 		h.Write([]byte(o.Path))
 		h.Write(data)
 		o.sha = h.Sum(nil)
+		o.HashString = hashString(o.sha)
 	case Blob:
 		data, err := ioutil.ReadFile(o.Path)
 		if err != nil {
@@ -238,6 +262,7 @@ func (o *Object) RecCalcHashSum() {
 		h.Write([]byte(o.Path))
 		h.Write(data)
 		o.sha = h.Sum(nil)
+		o.HashString = hashString(o.sha)
 	default:
 		log.Fatal(got.ErrInvalidObjType)
 	}
@@ -268,14 +293,14 @@ func (o *Object) write() {
 	switch o.ObjType {
 	case Commit:
 		path := path.Join(got.CommitDirAbsPath(), hashString(o.sha))
-		writeArchive(path, o.Name, []byte(o.gzipContent))
+		writeArchive(path, o.Name, []byte(o.gzipContent), time.Now(), o.CommitMessage)
 		got.UpdateHead(hashString(o.sha))
 	case Tree:
 		path := path.Join(got.TreeDirAbsPath(), hashString(o.sha))
 		if exists(path) {
 			break
 		}
-		writeArchive(path, o.Name, []byte(o.gzipContent))
+		writeArchive(path, o.Name, []byte(o.gzipContent), time.Now(), "")
 	case Blob:
 		path := path.Join(got.BlobDirAbsPath(), hashString(o.sha))
 		if exists(path) {
@@ -285,19 +310,22 @@ func (o *Object) write() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		writeArchive(path, o.Name, data)
+		writeArchive(path, o.Name, data, time.Now(), "")
 	default:
 		log.Fatal(got.ErrInvalidObjType)
 	}
 }
 
-func writeArchive(p string, name string, data []byte) {
+func writeArchive(p string, name string, data []byte, t time.Time, commitMessage string) {
 	fd, _ := os.Create(p)
 	archiver := gzip.NewWriter(fd)
 	defer fd.Close()
 	defer archiver.Close()
 	archiver.Name = name
-	archiver.ModTime = time.Now()
+	archiver.ModTime = t.UTC()
+	if commitMessage != "" {
+		archiver.Comment = commitMessage
+	}
 	archiver.Write(data)
 }
 
