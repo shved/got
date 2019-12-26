@@ -1,3 +1,4 @@
+// Package object includes all the functions and types related to the Got objects and operations on them.
 package object
 
 import (
@@ -23,6 +24,7 @@ const (
 	Blob
 )
 
+// Object is a struct representation of a repo object.
 type Object struct {
 	ObjType          ObjectType
 	Parent           *Object
@@ -38,9 +40,9 @@ type Object struct {
 	sha          []byte
 	contentLines []string
 	gzipContent  string
-	parentCommit *Object // TODO redundant???
 }
 
+// Show returns a string with object content.
 func Show(shaString string) string {
 	if exists(path.Join(got.CommitDirAbsPath(), shaString)) {
 		return objContent(path.Join(got.CommitDirAbsPath(), shaString))
@@ -58,13 +60,21 @@ func Show(shaString string) string {
 	panic("never reach")
 }
 
+// objContent reads object archive and returns only its contentw without gzip headers.
+func objContent(p string) string {
+	res, _ := readArchive(p)
+	return string(res)
+}
+
+// RecRestoreFromObject recursively writes objects into files/folders making an object graph
+// persisted in a worktree.
 func (o *Object) RecRestoreFromObject(p string) {
 	switch o.ObjType {
 	case Commit:
 		for _, ch := range o.Children {
 			ch.RecRestoreFromObject(p)
 		}
-		got.UpdateHead(string(o.sha))
+		got.UpdateHead(o.HashString)
 	case Tree:
 		treePath := path.Join(p, o.Name)
 		err := os.Mkdir(treePath, 0755)
@@ -82,39 +92,7 @@ func (o *Object) RecRestoreFromObject(p string) {
 	}
 }
 
-func objContent(p string) string {
-	res, _ := readArchive(p)
-	return string(res)
-}
-
-func (t ObjectType) toString() string {
-	switch t {
-	case Commit:
-		return "commit"
-	case Tree:
-		return "tree"
-	case Blob:
-		return "blob"
-	default:
-		log.Fatal(got.ErrInvalidObjType)
-		panic("never reach")
-	}
-}
-
-func strToObjType(s string) ObjectType {
-	switch s {
-	case "commit":
-		return Commit
-	case "tree":
-		return Tree
-	case "blob":
-		return Blob
-	default:
-		log.Fatal(got.ErrInvalidObjType)
-		panic("never reach")
-	}
-}
-
+// RecReadObject recursively reads objects archives and links them into an object graph.
 func RecReadObject(t ObjectType, hashString string, parentObj *Object) *Object {
 	switch t {
 	case Commit:
@@ -172,18 +150,15 @@ func RecReadObject(t ObjectType, hashString string, parentObj *Object) *Object {
 	panic("never reach")
 }
 
-func readArchive(p string) ([]byte, gzip.Header) {
-	fd, err := os.Open(p)
-	unarchiver, _ := gzip.NewReader(fd)
-	defer fd.Close()
-	defer unarchiver.Close()
-	res, err := ioutil.ReadAll(unarchiver)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return res, unarchiver.Header
+// objRepr is a local type to proceed object string representation for the further transformation intro and object.
+type objRepr struct {
+	t          ObjectType
+	hashString string
+	name       string
 }
 
+// parseObjContent takes object (commit or tree) contents and returns a slice of containing objects
+// in a special representation form.
 func parseObjContent(s string) []objRepr {
 	var objects []objRepr
 	lines := strings.Split(s, "\n")
@@ -193,6 +168,7 @@ func parseObjContent(s string) []objRepr {
 	return objects
 }
 
+// parseObjString parses object string representation.
 func parseObjString(s string) objRepr {
 	entries := strings.Split(s, "\t")
 	var name string
@@ -202,12 +178,7 @@ func parseObjString(s string) objRepr {
 	return objRepr{t: strToObjType(entries[0]), hashString: entries[1], name: name}
 }
 
-type objRepr struct {
-	t          ObjectType
-	hashString string
-	name       string
-}
-
+// storePath returns objects path to write into depending on its type.
 func (t ObjectType) storePath() string {
 	switch t {
 	case Commit:
@@ -222,7 +193,8 @@ func (t ObjectType) storePath() string {
 	panic("never reach")
 }
 
-// recursive calculate all objects sha1 started from very far children
+// RecCalcHashSum recursively calculates all objects sha1 in an object graph started from very far children
+// and puts it into the object struct fields sha and HashString.
 func (o *Object) RecCalcHashSum() {
 	switch o.ObjType {
 	case Commit:
@@ -230,15 +202,14 @@ func (o *Object) RecCalcHashSum() {
 			ch.RecCalcHashSum()
 			o.contentLines = append(o.contentLines, ch.buildContentLineForParent())
 		}
-		parentCommitLine := parentCommitShaContentLine(o.ParentCommitHash)
-		o.contentLines = append(o.contentLines, parentCommitLine)
+		if o.ParentCommitHash != string(got.EmptyCommitRef) {
+			parentCommitLine := parentCommitShaContentLine(o.ParentCommitHash)
+			o.contentLines = append(o.contentLines, parentCommitLine)
+		}
 		sort.Strings(o.contentLines)
 		o.gzipContent = strings.Join(o.contentLines, "\n")
 		data := []byte(o.gzipContent)
-		h := sha1.New()
-		h.Write(data)
-		o.sha = h.Sum(nil)
-		o.HashString = hashString(o.sha)
+		o.writeShaSum(data)
 	case Tree:
 		for _, ch := range o.Children {
 			ch.RecCalcHashSum()
@@ -247,38 +218,48 @@ func (o *Object) RecCalcHashSum() {
 		sort.Strings(o.contentLines)
 		o.gzipContent = strings.Join(o.contentLines, "\n")
 		data := []byte(o.gzipContent)
-		h := sha1.New()
-		h.Write([]byte(o.Path))
-		h.Write(data)
-		o.sha = h.Sum(nil)
-		o.HashString = hashString(o.sha)
+		o.writeShaSum(data)
 	case Blob:
 		data, err := ioutil.ReadFile(o.Path)
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		h := sha1.New()
-		h.Write([]byte(o.Path))
-		h.Write(data)
-		o.sha = h.Sum(nil)
-		o.HashString = hashString(o.sha)
+		o.writeShaSum(data)
 	default:
 		log.Fatal(got.ErrInvalidObjType)
 	}
 }
 
+// writeShaSum takes bytes data, calculates sha sum for it and writes sum and hash string into the object struct.
+func (o *Object) writeShaSum(data []byte) {
+	h := sha1.New()
+	h.Write(data)
+	o.sha = h.Sum(nil)
+	o.HashString = hashString(o.sha)
+}
+
+// buildContentLineForParent builds a string to put into parents (commit or tree) content to be archived.
 func (o *Object) buildContentLineForParent() string {
-	entries := []string{o.ObjType.toString(), hashString(o.sha), o.Name}
+	entries := []string{o.ObjType.toString(), o.HashString, o.Name}
 	return strings.Join(entries, "\t")
 }
 
-func parentCommitShaContentLine(parentSha string) string {
-	// TODO add real commit message when it will be unpacked as a worktree object
-	entries := []string{Commit.toString(), parentSha, "here will be commit message"}
+// parentCommitShaContentLine reads commit archive and builds content line for commit
+// pointing to parent commit.
+func parentCommitShaContentLine(parentHash string) string {
+	parentCommitPath := path.Join(got.CommitDirAbsPath(), parentHash)
+	fd, err := os.Open(parentCommitPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	unarchiver, _ := gzip.NewReader(fd)
+	defer fd.Close()
+	defer unarchiver.Close()
+	entries := []string{Commit.toString(), parentHash, unarchiver.Comment}
 	return strings.Join(entries, "\t")
 }
 
+// RecWriteObjects recursively writes archive for objects in a graph.
 func (o *Object) RecWriteObjects() {
 	if o.ObjType == Commit || o.ObjType == Tree {
 		for _, ch := range o.Children {
@@ -289,20 +270,21 @@ func (o *Object) RecWriteObjects() {
 	o.write()
 }
 
+// write function writes archives for objects.
 func (o *Object) write() {
 	switch o.ObjType {
 	case Commit:
-		path := path.Join(got.CommitDirAbsPath(), hashString(o.sha))
+		path := path.Join(got.CommitDirAbsPath(), o.HashString)
 		writeArchive(path, o.Name, []byte(o.gzipContent), time.Now(), o.CommitMessage)
-		got.UpdateHead(hashString(o.sha))
+		got.UpdateHead(o.HashString)
 	case Tree:
-		path := path.Join(got.TreeDirAbsPath(), hashString(o.sha))
+		path := path.Join(got.TreeDirAbsPath(), o.HashString)
 		if exists(path) {
 			break
 		}
 		writeArchive(path, o.Name, []byte(o.gzipContent), time.Now(), "")
 	case Blob:
-		path := path.Join(got.BlobDirAbsPath(), hashString(o.sha))
+		path := path.Join(got.BlobDirAbsPath(), o.HashString)
 		if exists(path) {
 			break
 		}
@@ -316,23 +298,69 @@ func (o *Object) write() {
 	}
 }
 
+// writeArchive implements archive writing for object data.
 func writeArchive(p string, name string, data []byte, t time.Time, commitMessage string) {
 	fd, _ := os.Create(p)
 	archiver := gzip.NewWriter(fd)
 	defer fd.Close()
 	defer archiver.Close()
 	archiver.Name = name
-	archiver.ModTime = t.UTC()
+	archiver.ModTime = t
 	if commitMessage != "" {
 		archiver.Comment = commitMessage
 	}
 	archiver.Write(data)
 }
 
+// readArchive reads a gzip archive and returns its content and header struct.
+func readArchive(p string) ([]byte, gzip.Header) {
+	fd, err := os.Open(p)
+	unarchiver, _ := gzip.NewReader(fd)
+	defer fd.Close()
+	defer unarchiver.Close()
+	res, err := ioutil.ReadAll(unarchiver)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return res, unarchiver.Header
+}
+
+// hashString converts hashSum into string representation.
 func hashString(hashSum []byte) string {
 	return fmt.Sprintf("%x", hashSum)
 }
 
+// toString converts object type into its string representation.
+func (t ObjectType) toString() string {
+	switch t {
+	case Commit:
+		return "commit"
+	case Tree:
+		return "tree"
+	case Blob:
+		return "blob"
+	default:
+		log.Fatal(got.ErrInvalidObjType)
+		panic("never reach")
+	}
+}
+
+// strToObjType converts string into respective object type.
+func strToObjType(s string) ObjectType {
+	switch s {
+	case "commit":
+		return Commit
+	case "tree":
+		return Tree
+	case "blob":
+		return Blob
+	default:
+		log.Fatal(got.ErrInvalidObjType)
+		panic("never reach")
+	}
+}
+
+// exists tests wheather a file exists.
 func exists(path string) bool {
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {

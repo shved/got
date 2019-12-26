@@ -1,3 +1,4 @@
+// Package got holds all the global repo vars and functions.
 package got
 
 import (
@@ -41,9 +42,10 @@ var (
 	TreePath   string = path.Join(objectsPath, "tree")
 	BlobPath   string = path.Join(objectsPath, "blob")
 
-	logsHeader string = "Time\tCommit hash\tParent hash\tCommit message\n"
+	logsHeader string = "Time\t\t\tCommit hash\t\t\t\t\tParent hash\t\t\t\t\tCommit message\n"
 )
 
+// InitRepo initializes a repo in a current working directory by creating a .got dir with all the needing content.
 func InitRepo() {
 	if _, err := os.Stat(gotPath); os.IsNotExist(err) {
 		os.Mkdir(gotPath, 0755)
@@ -65,18 +67,38 @@ func InitRepo() {
 	}
 }
 
+// SetRepoRoot finds closer .got dir in parent paths and sets its absolute path into an exported variable.
 func SetRepoRoot() {
 	AbsRepoRoot = getRepoRoot()
 }
 
+// CommitDirAbsPath returns absolute path holding commit objects.
+func CommitDirAbsPath() string {
+	return path.Join(AbsRepoRoot, CommitPath)
+}
+
+// TreeDirAbsPath returns absolute path holding tree objects.
+func TreeDirAbsPath() string {
+	return path.Join(AbsRepoRoot, TreePath)
+}
+
+// BlobDirAbsPath returns absolute path holding blob objects.
+func BlobDirAbsPath() string {
+	return path.Join(AbsRepoRoot, BlobPath)
+}
+
+// HeadsAbsPath returns absolute HEAD file path.
 func HeadAbsPath() string {
 	return path.Join(AbsRepoRoot, headPath)
 }
 
+// HeadsAbsPath returns absolute LOG file path.
 func LogAbsPath() string {
 	return path.Join(AbsRepoRoot, logPath)
 }
 
+// ReadLog reads all LOG file contents, reverses it for the right historical order, ads headers
+// and returns the result as a string.
 func ReadLog() string {
 	contents, err := ioutil.ReadFile(LogAbsPath())
 	if err != nil {
@@ -89,6 +111,7 @@ func ReadLog() string {
 	return logs
 }
 
+// UpdateLog adds a log entry into a LOG file.
 func UpdateLog(t time.Time, hashString string, parentHashString string, message string) {
 	logEntry := strings.Join(
 		[]string{
@@ -110,30 +133,20 @@ func UpdateLog(t time.Time, hashString string, parentHashString string, message 
 	}
 }
 
+// UpdateHead refresh last commit hash string in a HEAD file.
 func UpdateHead(sha string) {
 	if err := ioutil.WriteFile(HeadAbsPath(), []byte(sha), 0644); err != nil {
 		log.Fatal(err)
 	}
 }
 
+// ReadHead reads commit hash string from a HEAD file.
 func ReadHead() string {
 	commitSha, err := ioutil.ReadFile(HeadAbsPath())
 	if err != nil {
 		log.Fatal(err)
 	}
 	return string(commitSha)
-}
-
-func CommitDirAbsPath() string {
-	return path.Join(AbsRepoRoot, CommitPath)
-}
-
-func TreeDirAbsPath() string {
-	return path.Join(AbsRepoRoot, TreePath)
-}
-
-func BlobDirAbsPath() string {
-	return path.Join(AbsRepoRoot, BlobPath)
 }
 
 func getRepoRoot() string {
@@ -164,8 +177,7 @@ func getRootRelPath() string {
 	}
 
 	log.Fatal(ErrNotGotRepo)
-	// TODO rewrite to return string, error
-	return ""
+	panic("never reach")
 }
 
 func isRepoRoot(path string) bool {

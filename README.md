@@ -24,21 +24,23 @@ A: Because it is oversimplified Git
 # Usage
 
 ```
-got init
-got commit 'initial commit'
-got log
-got to d143528ac209d5d927e485e0f923758a21d0901e
+got init                                        // to init a repo in current dir
+got commit 'initial commit'                     // to commit the state
+got log                                         // to see commits list
+got to d143528ac209d5d927e485e0f923758a21d0901e // to restore a commit
+got current                                     // to see current head commit hash
 ```
 
 # TODO
 - [x] git log
-- [ ] fix timestamps in log
+- [x] add commands success messages
+- [x] documentation comments
 - [ ] support branches
 - [ ] support .gotignore file among with default ingore entries
 - [ ] ignore nested empty folders
-- [ ] atomic commit writing
 - [ ] reduce system calls (especially io)
 - [ ] server and client over ssh
-- [ ] documentation comments
 - [ ] keep files permissions when checkout to commit
 - [ ] command to delete hanging commits
+- [ ] experiment with object compression level
+- [ ] atomic commit writing

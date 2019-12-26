@@ -1,3 +1,4 @@
+// Package worktree holds all the logic related to operations with a worktree
 package worktree
 
 import (
@@ -5,27 +6,32 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/shved/got/got"
 	"github.com/shved/got/object"
 )
 
+// Worktree is a struct representing worktree with a root of commit object.
 type Worktree struct {
 	root  *object.Object
 	index []*object.Object
 }
 
+// NewFromWorktree building an object graph from current repo worktree state.
 func NewFromWorktree(commitMessage string) *Worktree {
-	commit := &object.Object{ObjType: object.Commit, CommitMessage: commitMessage}
+	commit := &object.Object{ObjType: object.Commit, CommitMessage: commitMessage, Timestamp: time.Now()}
 	objIndex := buildObjIndex()
 	return &Worktree{root: commit, index: objIndex}
 }
 
+// NewFromCommit building an object graph from archived commit object.
 func NewFromCommit(commitHash string) *Worktree {
 	commit := object.RecReadObject(object.Commit, commitHash, &object.Object{})
 	return &Worktree{root: commit}
 }
 
+// MakeCommit builds a worktree from current worktree state and writes obejcts in repo.
 func MakeCommit(message string) {
 	wt := NewFromWorktree(message)
 	wt.buildWorktreeGraph()
@@ -34,17 +40,20 @@ func MakeCommit(message string) {
 	got.UpdateLog(wt.root.Timestamp, wt.root.HashString, wt.root.ParentCommitHash, wt.root.CommitMessage)
 }
 
+// ToCommit builds worktree from commit object, erases current worktree state and restore state from commit.
 func ToCommit(commitHash string) {
 	wt := NewFromCommit(commitHash)
 	// TODO insert prompt before rewrite worktree
 	wt.restoreFromObjects()
 }
 
+// restoreFromObjects erases current worktree and restore objects from a graph.
 func (wt *Worktree) restoreFromObjects() {
 	eraseCurrentWorktree()
 	wt.root.RecRestoreFromObject(got.AbsRepoRoot)
 }
 
+// eraseCurrentWorktree erases all the worktree contents.
 func eraseCurrentWorktree() {
 	var paths []string
 
@@ -82,6 +91,7 @@ func eraseCurrentWorktree() {
 	}
 }
 
+// buildObjIndex reads all the repo worktree and collect files and folders into a slice.
 func buildObjIndex() []*object.Object {
 	var objIndex []*object.Object
 
@@ -161,6 +171,7 @@ func (wt *Worktree) buildHashSums() {
 	wt.root.RecCalcHashSum()
 }
 
+// buildWorktreeGraph links objects from object index into a graph structure.
 func (wt *Worktree) buildWorktreeGraph() {
 	if wt.root.ObjType != object.Commit {
 		log.Fatal(got.ErrWrongRootType)
