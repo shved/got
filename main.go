@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/shved/got/got"
 	"github.com/shved/got/object"
@@ -37,7 +38,7 @@ func main() {
 			fmt.Println("No commit message provided")
 			os.Exit(0)
 		}
-		worktree.MakeCommit(message)
+		worktree.MakeCommit(message, time.Now())
 		fmt.Println("Worktree commited:", got.ReadHead())
 	case "to":
 		shaString := flag.Arg(1)
