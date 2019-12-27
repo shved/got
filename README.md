@@ -32,9 +32,11 @@ got current                                     // to see current head commit ha
 ```
 
 # TODO
-- [x] git log
+- [x] got log
 - [x] add commands success messages
 - [x] documentation comments
+- [x] test
+- [ ] show commits diff
 - [ ] support branches
 - [ ] support .gotignore file among with default ingore entries
 - [ ] ignore nested empty folders

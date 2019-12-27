@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 )
 
 var (
@@ -18,6 +17,7 @@ var (
 	ErrInvalidObjType    = errors.New("invalid object type")
 	ErrNotGotRepo        = errors.New("not a got repo")
 	ErrWrongRootType     = errors.New("only commit could be an object graph root")
+	ErrWrongLogEntryType = errors.New("only commit could be saved in repo logs")
 	ErrObjDoesNotExist   = errors.New("object does not exist")
 )
 
@@ -112,21 +112,10 @@ func ReadLog() string {
 }
 
 // UpdateLog adds a log entry into a LOG file.
-func UpdateLog(t time.Time, hashString string, parentHashString string, message string) {
-	logEntry := strings.Join(
-		[]string{
-			t.UTC().Format(time.RFC3339),
-			hashString,
-			parentHashString,
-			message,
-		},
-		"\t",
-	)
-	logEntry = logEntry + "\n"
-
+func UpdateLog(entry string) {
 	f, err := os.OpenFile(LogAbsPath(), os.O_APPEND|os.O_WRONLY, 0644)
 	defer f.Close()
-	_, err = f.WriteString(logEntry)
+	_, err = f.WriteString(entry)
 
 	if err != nil {
 		log.Fatal(err)

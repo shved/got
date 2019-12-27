@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestMainWorkflow(t *testing.T) {
-    checkRepoSum(t, "initial state")
+	checkRepoSum(t, "initial state")
 
 	got.InitRepo()
 	got.SetRepoRoot()

@@ -193,6 +193,24 @@ func (t ObjectType) storePath() string {
 	panic("never reach")
 }
 
+// LogEntry function returns a string representation of a commit for repo commit log.
+func (o *Object) LogEntry() string {
+	if o.ObjType != Commit {
+		log.Fatal(got.ErrWrongLogEntryType)
+	}
+
+	logEntry := strings.Join(
+		[]string{
+			o.Timestamp.UTC().Format(time.RFC3339),
+			o.HashString,
+			o.ParentCommitHash,
+			o.CommitMessage,
+		},
+		"\t",
+	)
+	return logEntry + "\n"
+}
+
 // RecCalcHashSum recursively calculates all objects sha1 in an object graph started from very far children
 // and puts it into the object struct fields sha and HashString.
 func (o *Object) RecCalcHashSum() {

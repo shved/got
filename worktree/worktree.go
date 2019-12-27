@@ -37,7 +37,7 @@ func MakeCommit(message string, t time.Time) {
 	wt.buildWorktreeGraph()
 	wt.buildHashSums()
 	wt.persistObjects()
-	got.UpdateLog(wt.root.Timestamp, wt.root.HashString, wt.root.ParentCommitHash, wt.root.CommitMessage)
+	got.UpdateLog(wt.root.LogEntry())
 }
 
 // ToCommit builds worktree from commit object, erases current worktree state and restore state from commit.
