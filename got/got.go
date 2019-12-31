@@ -23,6 +23,7 @@ var (
 
 var DefaultIgnoreEntries = []string{
 	".gitignore",
+	".gitkeep",
 	".git",
 	".got",
 	".DS_Store",
