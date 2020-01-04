@@ -24,7 +24,7 @@ func init() {
 func main() {
 	command := flag.Arg(0)
 
-	if !commandInBlankRepoCommands(command) {
+	if !blankRepoCommand(command) {
 		got.SetRepoRoot()
 	}
 
@@ -76,7 +76,7 @@ got to d143528ac209d5d927e485e0f923758a21d0901e // to restore a commit
 got current                                     // to see current head commit hash`)
 }
 
-func commandInBlankRepoCommands(command string) bool {
+func blankRepoCommand(command string) bool {
 	for _, com := range blankRepoCommands {
 		if com == command {
 			return true

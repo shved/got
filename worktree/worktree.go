@@ -22,7 +22,12 @@ type Worktree struct {
 func NewFromWorktree(commitMessage string, t time.Time) *Worktree {
 	commit := &object.Object{ObjType: object.Commit, CommitMessage: commitMessage, Timestamp: t}
 	objIndex := buildObjIndex()
-	return &Worktree{root: commit, index: objIndex}
+	wt := new(Worktree)
+	wt.root = commit
+	wt.index = objIndex
+	wt.buildWorktreeGraph()
+	wt.buildHashSums()
+	return wt
 }
 
 // NewFromCommit building an object graph from archived commit object.
@@ -34,8 +39,6 @@ func NewFromCommit(commitHash string) *Worktree {
 // MakeCommit builds a worktree from current worktree state and writes obejcts in repo.
 func MakeCommit(message string, t time.Time) {
 	wt := NewFromWorktree(message, t)
-	wt.buildWorktreeGraph()
-	wt.buildHashSums()
 	wt.persistObjects()
 	got.UpdateLog(wt.root.LogEntry())
 }

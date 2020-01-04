@@ -21,15 +21,15 @@ import (
 var expectedHashSums map[string]string = map[string]string{
 	"initial state":                  "e3980c53eecf817099d9eed5202e33d50a84a903",
 	"repo initiated":                 "ff03475a2b21e13c2ad33881a5171f2aeb8f84a2",
-	"after initial commit":           "8b8c226541835284c85241139074e9f5374017ca",
-	"after first change":             "ca4d39f953416ab4a2afba301413da863331e11a",
-	"after second change":            "fe48688c7d98149b75cea26937ea78caec56a023",
-	"after checkout to first change": "100b270116cf66a49ce4cc312817bc4f70f90a9f",
+	"after initial commit":           "898fbc176b8d57afa9653aba855e8e76cb361c70",
+	"after first change":             "ec802cd71985e34ab3b7f5eede16c9446802e460",
+	"after second change":            "0d5db35ed364e7c9421cb41f92ec654ba4bf2e71",
+	"after checkout to first change": "d64552265c66baedad2560c5fe5c52b7f9225227",
 }
 
-var commitToCheckout = "4c69dc662e8873513ef9d1e1e1375579f6fd3725"
+var commitToCheckout = "78bb45636d49ed0e1a6a9a2a54aa7a0d6eb18173"
 
-var expectedShowLen = 167
+var expectedShowLen = 112
 var expectedLogLen = 405
 
 var dummyAppPath string
@@ -76,7 +76,7 @@ func TestMainWorkflow(t *testing.T) {
 
 	head := got.ReadHead()
 	if head != commitToCheckout {
-		t.Fatalf("expected head be on 4c69dc662e8873513ef9d1e1e1375579f6fd3725, got %v", head)
+		t.Fatalf("expected head be on %v, got %v", commitToCheckout, head)
 	}
 
 	commitInfo := object.Show(commitToCheckout)

@@ -333,12 +333,15 @@ func writeArchive(p string, name string, data []byte, t time.Time, commitMessage
 // readArchive reads a gzip archive and returns its content and header struct.
 func readArchive(p string) ([]byte, gzip.Header) {
 	fd, err := os.Open(p)
-	unarchiver, _ := gzip.NewReader(fd)
+	unarchiver, err := gzip.NewReader(fd)
+	if err != nil {
+		log.Fatalf("reading archive %s: %v", p, err)
+	}
 	defer fd.Close()
 	defer unarchiver.Close()
 	res, err := ioutil.ReadAll(unarchiver)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("reading archive %s: %v", p, err)
 	}
 	return res, unarchiver.Header
 }
