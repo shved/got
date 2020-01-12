@@ -145,7 +145,7 @@ func RecReadObject(t ObjectType, hashString string, parentObj *Object) *Object {
 		}
 		return blob
 	default:
-		log.Fatal(got.ErrInvalidObjType)
+		log.Fatalf("RecReadObject(): %v", got.ErrInvalidObjType)
 	}
 	panic("never reach")
 }
@@ -188,7 +188,7 @@ func (t ObjectType) storePath() string {
 	case Blob:
 		return got.BlobDirAbsPath()
 	default:
-		log.Fatal(got.ErrInvalidObjType)
+		log.Fatalf("storePath(): %v", got.ErrInvalidObjType)
 	}
 	panic("never reach")
 }
@@ -244,7 +244,7 @@ func (o *Object) RecCalcHashSum() {
 		}
 		o.writeShaSum(data)
 	default:
-		log.Fatal(got.ErrInvalidObjType)
+		log.Fatalf("RecCalcHashSum(): %v", got.ErrInvalidObjType)
 	}
 }
 
@@ -312,7 +312,7 @@ func (o *Object) write() {
 		}
 		writeArchive(path, o.Name, data, time.Now(), "")
 	default:
-		log.Fatal(got.ErrInvalidObjType)
+		log.Fatalf("write(): %v", got.ErrInvalidObjType)
 	}
 }
 
@@ -361,7 +361,7 @@ func (t ObjectType) toString() string {
 	case Blob:
 		return "blob"
 	default:
-		log.Fatal(got.ErrInvalidObjType)
+		log.Fatalf("toString(): %v", got.ErrInvalidObjType)
 		panic("never reach")
 	}
 }
@@ -376,7 +376,7 @@ func strToObjType(s string) ObjectType {
 	case "blob":
 		return Blob
 	default:
-		log.Fatal(got.ErrInvalidObjType)
+		log.Fatalf("strToObjType(): %v (%v)", got.ErrInvalidObjType, s)
 		panic("never reach")
 	}
 }
