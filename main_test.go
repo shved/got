@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/shved/got/got"
+	"github.com/shved/got/misc"
 	"github.com/shved/got/object"
 	"github.com/shved/got/worktree"
 )
@@ -37,14 +38,14 @@ var dummyAppPath string
 func TestMain(m *testing.M) {
 	curDir, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("filed to get current working directory: %v", err)
+		log.Fatalf("get current working directory: %v", err)
 	}
 	dummyAppPath = path.Join(curDir, "test/dummy_app")
 	os.Chdir(dummyAppPath)
 
-	createDummyApp()
+	misc.CreateDummyApp()
 	exitCode := m.Run()
-	removeDummyApp()
+	misc.RemoveDummyApp()
 	os.Exit(exitCode)
 }
 
@@ -96,28 +97,6 @@ func checkRepoSum(t *testing.T, step string) {
 		t.Fatalf("%v: expected to have %v sum, got %v", step, expectedHashSums[step], sum)
 	}
 
-}
-
-func createDummyApp() {
-	err := os.Mkdir("app", 0755)
-	err = os.Mkdir("app/lib", 0755)
-	err = os.Mkdir("app/views", 0755)
-
-	err = ioutil.WriteFile("app/sample.file", []byte("some data here"), 0644)
-	err = ioutil.WriteFile("app/lib/sample.php", []byte("some data here"), 0644)
-	err = ioutil.WriteFile("app/views/sample.html", []byte("<body>some data here</body>"), 0644)
-
-	if err != nil {
-		log.Fatalf("failed to create dummy app: %v", err)
-	}
-}
-
-func removeDummyApp() {
-	err := os.RemoveAll("app")
-	err = os.RemoveAll(".got")
-	if err != nil {
-		log.Fatalf("filed to remove dummy app: %v", err)
-	}
 }
 
 func makeFirstChange() {
