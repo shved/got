@@ -1,5 +1,5 @@
 build:
-	go build -o got
+	go build -o build/got
 lint:
 	go fmt ./...
 test:
