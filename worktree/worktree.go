@@ -54,6 +54,7 @@ func ToCommit(commitHash string) {
 func (wt *Worktree) restoreFromObjects() {
 	eraseCurrentWorktree()
 	wt.root.RecRestoreFromObject(got.AbsRepoRoot)
+	got.UpdateHead(wt.root.HashString)
 }
 
 // eraseCurrentWorktree erases all the worktree contents.

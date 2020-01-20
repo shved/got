@@ -74,7 +74,6 @@ func (o *Object) RecRestoreFromObject(p string) {
 		for _, ch := range o.Children {
 			ch.RecRestoreFromObject(p)
 		}
-		got.UpdateHead(o.HashString)
 	case Tree:
 		treePath := path.Join(p, o.Name)
 		err := os.Mkdir(treePath, 0755)
