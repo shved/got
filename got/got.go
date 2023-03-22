@@ -48,19 +48,16 @@ var (
 
 // InitRepo initializes a repo in a current working directory by creating a .got dir with all the needing content.
 func InitRepo() {
-	if _, err := os.Stat(gotPath); os.IsNotExist(err) {
-		os.Mkdir(gotPath, 0755)
-	} else {
+	if _, err := os.Stat(gotPath); !os.IsNotExist(err) {
 		log.Fatal(ErrRepoAlreadyInited)
 	}
 
-	err := os.Mkdir(objectsPath, 0755)
+	err := os.Mkdir(gotPath, 0755)
+	err = os.Mkdir(objectsPath, 0755)
 	err = os.Mkdir(CommitPath, 0755)
 	err = os.Mkdir(TreePath, 0755)
 	err = os.Mkdir(BlobPath, 0755)
-
 	err = ioutil.WriteFile(headPath, EmptyCommitRef, 0644)
-
 	_, err = os.Create(logPath)
 
 	if err != nil {
